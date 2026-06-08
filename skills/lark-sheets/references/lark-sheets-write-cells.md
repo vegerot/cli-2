@@ -401,6 +401,8 @@ lark-cli sheets +cells-set --spreadsheet-token shtXXX --sheet-id "$SID" \
 > 中间想跳过的 cell 用空对象 `{}` 占位（底层语义为"保留原值不变"），`--cells` 维度仍须与 `--range` 完全一致。例：`--range A1:A5 --cells '[[{"value":1}],[{}],[{}],[{}],[{"value":5}]]'` 只写 A1 和 A5。
 >
 > 跨多个不连续区域散点写入（如 `D2` + `F7` + `J15`）不属于 `+cells-set` 的能力范围——请用 `+batch-update` 把多次 `+cells-set` 打包成单次原子请求。
+>
+> ⚠️ **非连续目标列必须分 range 写入**：像 `M/X/AI/AT/BE/BP` 这种隔列填充，不能把本地 DataFrame 压成连续矩形从 `M1` 一次写入，否则会覆盖中间原列。应按列分别构造 `M4:M22`、`X4:X22`、`AI4:AI22` 等 range，或用 `+batch-update` 打包多次 `+cells-set`。写完回读目标列和相邻原列，确认只改了指定列。
 
 ### `+cells-set-style`
 
@@ -443,6 +445,10 @@ lark-cli sheets +csv-put --spreadsheet-token shtXXX --sheet-id "$SID" \
 
 > `+csv-put` 比 `+cells-set` 短得多——只想批量灌纯值时优先用它。需要公式/样式才换 `+cells-set`。
 >
+> ⚠️ **文件路径必须带 `@`**：`--csv` 接收的是 CSV 内容，不是普通路径。正确：`--csv @data.csv` 或 stdin；错误：`--csv ./data.csv`（会把字符串 `./data.csv` 当作单元格内容写入）。
+>
+> ⚠️ **不要用 `+csv-put` 承担保结构/公式任务**：它只写纯值，不保留公式、样式、合并、多 sheet、图表或条件格式；也不会把 `=` 开头内容转成公式。用户要求保留模板、公式、样式或只改指定列时，优先用 `+cells-set` / `+table-put` / workbook 局部修改。
+>
 > ⚠️ `=` 开头的字符串会被当字面量写入（**不会变公式**）：
 >
 > ```bash
@@ -457,6 +463,7 @@ lark-cli sheets +csv-put --spreadsheet-token shtXXX --sheet-id "$SID" \
 > - ⚠️ `--start-cell` / `--range` **只定左上角、不限制写入大小**：CSV 从锚点按自身行列数 auto-expand 铺开。给一个"小 range"**不会**截断数据——超出部分照写，且默认覆盖。这与 `+cells-set --range`（精确矩形、`--cells` 必须与 range 同维）语义相反，别把那套心智搬过来。
 > - dry-run 与成功响应都回显 `writes_range`（实际落区，如 `B2:D4`）：**写前先 `--dry-run` 看一眼落区**，确认不会盖到相邻数据。
 > - 要保护非空 cell：`--allow-overwrite=false`（落区内出现非空 cell 即报错）。
+> - 写入成功后用 `+csv-get` 或 `+cells-get` 回读 `writes_range` 的首行、末行和 1 个中间样例；如果任务要求保护原表，再额外回读落区相邻列/行确认没有被覆盖。
 
 ### `+table-put`（DataFrame → 飞书，类型保真写入）
 
@@ -500,4 +507,4 @@ def df_to_sheet(df, name, formats=None):
 
 - `Validate`：XOR 公共四件套；`+cells-set` 的 `--cells` 必须能解析为 JSON 二维矩阵且行列数与 `--range` 完全一致；`+cells-set-style` 的样式 flag 至少一个非空（或带 `--border-styles`）；`+cells-set-image` 的 `--range` 必须是单 cell（起止 cell 相同）；`+csv-put` 的 `--csv` 必须能按 RFC 4180 解析；防爆参数上限校验。
 - `DryRun`：输出目标 range + 推断尺寸 + 是否覆盖非空 cell 警告，零网络副作用。
-- `Execute`：写后不自动回读；如需确认，自行调用 `+cells-get --range <写入区域> --include value,formula` 抽样核对。
+- `Execute`：写后不自动回读；交付前必须自行调用 `+csv-get` / `+cells-get --range <写入区域> --include value,formula,style` 抽样核对。公式任务看 `formula`，样式任务看 `style`，保结构任务再回读相邻原区域和工作表列表。

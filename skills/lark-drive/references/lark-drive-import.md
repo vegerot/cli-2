@@ -53,6 +53,15 @@ lark-cli drive +import --file ./data.xlsx --type bitable --target-token <BASE_TO
 lark-cli drive +import --file ./README.md --type docx --dry-run
 ```
 
+## Excel 导入失败与保结构规则
+
+当用户要求把本地 Excel 导入为在线表格，并继续在原表上填充 / 修正 / 追加时，优先保证导入成功和结构保真：
+
+- **不要把导入失败退化成 CSV 重建**：如果用户要求保留原表结构、样式、公式、多 sheet、模板、图表、条件格式或已填写区域，失败后不能改用 `openpyxl -> csv -> sheets +csv-put` 新建/覆盖 `Sheet1`。这会破坏用户的核心要求。
+- **先修复导入链路**：检查 `--file` 是否在当前 CLI 可访问目录；必要时把文件复制到当前工作目录，使用 `./file.xlsx` 相对路径重试；确认 `--type sheet` / `--type bitable` 是否与用户目标一致；可先跑 `--dry-run` 看请求链路。
+- **导入成功后只改目标区域**：需要继续填公式/数据时切到 `lark-sheets`，先 `+workbook-info` 确认 sheet 列表，再只更新用户指定的列/range，最后 readback 验证目标区域与原区域。
+- **只有纯值场景才可 CSV**：用户明确允许"只保留值、不保留公式/样式/多 sheet"时，才可转换 CSV；最终回复必须说明该取舍。
+
 ## 参数
 
 | 参数 | 必填 | 说明 |
