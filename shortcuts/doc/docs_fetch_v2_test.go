@@ -5,6 +5,7 @@ package doc
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -74,7 +75,7 @@ func TestDocsFetchDryRunDefaultsToV2Endpoint(t *testing.T) {
 	if got, want := dry.API[0].URL, "/open-apis/docs_ai/v1/documents/doxcnFetchDryRun/fetch"; got != want {
 		t.Fatalf("dry-run URL = %q, want %q", got, want)
 	}
-	if got, want := dry.API[0].Body["format"], "xml"; got != want {
+	if got, want := dry.API[0].Body["format"], "markdown"; got != want {
 		t.Fatalf("dry-run format = %#v, want %q", got, want)
 	}
 }
@@ -137,7 +138,7 @@ func TestDocsFetchRejectsLegacyFlags(t *testing.T) {
 
 func newFetchBodyTestRuntime(ctx context.Context) *common.RuntimeContext {
 	cmd := &cobra.Command{Use: "+fetch"}
-	cmd.Flags().String("doc-format", "xml", "")
+	cmd.Flags().String("doc-format", fetchDefault("doc-format"), "")
 	cmd.Flags().String("detail", "simple", "")
 	cmd.Flags().Int("revision-id", -1, "")
 	cmd.Flags().String("scope", "full", "")
@@ -150,13 +151,26 @@ func newFetchBodyTestRuntime(ctx context.Context) *common.RuntimeContext {
 	return common.TestNewRuntimeContextWithCtx(ctx, cmd, nil)
 }
 
+// fetchDefault returns the declared default for a flag from the real
+// v2FetchFlags definition so tests don't hardcode a stale default.
+// It panics if the flag is not found, since a missing flag indicates
+// a test setup error rather than a runtime condition.
+func fetchDefault(name string) string {
+	for _, fl := range v2FetchFlags() {
+		if fl.Name == name {
+			return fl.Default
+		}
+	}
+	panic(fmt.Sprintf("fetchDefault: flag %q not found in v2FetchFlags", name))
+}
+
 func newFetchShortcutTestRuntime(t *testing.T, apiVersion string, setFlags map[string]string) *common.RuntimeContext {
 	t.Helper()
 
 	cmd := &cobra.Command{Use: "+fetch"}
 	cmd.Flags().String("api-version", "", "")
 	cmd.Flags().String("doc", "doxcnFetchDryRun", "")
-	cmd.Flags().String("doc-format", "xml", "")
+	cmd.Flags().String("doc-format", fetchDefault("doc-format"), "")
 	cmd.Flags().String("detail", "simple", "")
 	cmd.Flags().Int("revision-id", -1, "")
 	cmd.Flags().String("scope", "full", "")
