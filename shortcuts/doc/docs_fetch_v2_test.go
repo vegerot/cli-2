@@ -75,7 +75,7 @@ func TestDocsFetchDryRunDefaultsToV2Endpoint(t *testing.T) {
 	if got, want := dry.API[0].URL, "/open-apis/docs_ai/v1/documents/doxcnFetchDryRun/fetch"; got != want {
 		t.Fatalf("dry-run URL = %q, want %q", got, want)
 	}
-	if got, want := dry.API[0].Body["format"], "xml"; got != want {
+	if got, want := dry.API[0].Body["format"], "markdown"; got != want {
 		t.Fatalf("dry-run format = %#v, want %q", got, want)
 	}
 }
