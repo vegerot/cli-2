@@ -74,6 +74,7 @@ Requires Go `v1.23`+ and Python 3.
 git clone https://github.com/larksuite/cli.git
 cd cli
 make install
+npx skills add ./ -y -g
 
 # Install CLI SKILL (required)
 npx skills add larksuite/cli -y -g
