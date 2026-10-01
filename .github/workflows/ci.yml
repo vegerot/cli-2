@@ -8,6 +8,11 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
+    inputs:
+      run_live_e2e:
+        description: "Run live integration tests using configured tenant credentials"
+        type: boolean
+        default: false
 
 # PR metadata edits can retrigger full CI for the same head. Keep only the
 # newest run for a pull request; push and manual runs use a unique run ID.
@@ -361,7 +366,7 @@ jobs:
 
   e2e-live:
     needs: [unit-test, lint, script-test, deterministic-gate, e2e-dry-run]
-    if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) && needs.unit-test.result == 'success' && needs.lint.result == 'success' && needs.script-test.result == 'success' && needs.deterministic-gate.result == 'success' && needs.e2e-dry-run.result == 'success' && (needs.e2e-dry-run.outputs.mode == 'full' || needs.e2e-dry-run.outputs.mode == 'subset') && needs.e2e-dry-run.outputs.live_packages != '' }}
+    if: ${{ always() && (github.repository == 'larksuite/cli' || (github.event_name == 'workflow_dispatch' && inputs.run_live_e2e)) && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) && needs.unit-test.result == 'success' && needs.lint.result == 'success' && needs.script-test.result == 'success' && needs.deterministic-gate.result == 'success' && needs.e2e-dry-run.result == 'success' && (needs.e2e-dry-run.outputs.mode == 'full' || needs.e2e-dry-run.outputs.mode == 'subset') && needs.e2e-dry-run.outputs.live_packages != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

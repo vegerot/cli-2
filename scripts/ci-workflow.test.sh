@@ -51,7 +51,7 @@ results_section="$(awk '
   in_job { print }
 ' "$workflow")"
 fork_safe_guard="github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork"
-live_job_condition="always() && ($fork_safe_guard) && needs.unit-test.result == 'success' && needs.lint.result == 'success' && needs.script-test.result == 'success' && needs.deterministic-gate.result == 'success' && needs.e2e-dry-run.result == 'success' && (needs.e2e-dry-run.outputs.mode == 'full' || needs.e2e-dry-run.outputs.mode == 'subset') && needs.e2e-dry-run.outputs.live_packages != ''"
+live_job_condition="always() && (github.repository == 'larksuite/cli' || (github.event_name == 'workflow_dispatch' && inputs.run_live_e2e)) && ($fork_safe_guard) && needs.unit-test.result == 'success' && needs.lint.result == 'success' && needs.script-test.result == 'success' && needs.deterministic-gate.result == 'success' && needs.e2e-dry-run.result == 'success' && (needs.e2e-dry-run.outputs.mode == 'full' || needs.e2e-dry-run.outputs.mode == 'subset') && needs.e2e-dry-run.outputs.live_packages != ''"
 
 if ! grep -Fq "run-name: \${{ github.event_name == 'pull_request' && format('CI / {0}', github.event.pull_request.number) || '' }}" "$workflow"; then
   echo "CI should expose a stable PR generation while preserving default push and manual run titles" >&2
@@ -237,7 +237,7 @@ if ! grep -Fq "deterministic-gate" <<<"$results_section"; then
 fi
 
 if ! grep -Fq "if: \${{ $live_job_condition }}" <<<"$section"; then
-  echo "e2e-live should require a successful non-skip dry run and exclude fork pull requests"
+  echo "e2e-live should require explicit fork opt-in, a successful dry run, and exclude fork pull requests"
   exit 1
 fi
 
